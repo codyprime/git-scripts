@@ -224,11 +224,11 @@ compare_git()
         then
             numdiff=`diff -u <(git diff $uphash^!   |egrep ^[-+])\
                              <(git diff $downhash^! |egrep ^[-+])\
-                             | egrep '^[-+]' | egrep -v '^[-+]{3}' |wc -l`
+                             | egrep '^[-+]' | egrep -v '^[-+]{3}' |wc -l || true`
             # for contextual diff checking, we will ignore hashes and line number offsets
             condiff=`diff -u <(git diff $uphash^\!  |sed -e s/^@@.*@@//g |egrep -v ^index |egrep -v ^diff)\
                              <(git diff $downhash^\!|sed -e s/^@@.*@@//g |egrep -v ^index |egrep -v ^diff)\
-                             | egrep '^[-+]' | egrep -v '^[-+]{3}'|wc -l`
+                             | egrep '^[-+]' | egrep -v '^[-+]{3}'|wc -l || true`
             f="-"
             c="-"
             if [[ $sensitivity -gt 1 ]]
