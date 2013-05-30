@@ -192,7 +192,7 @@ do
         git show --stat $hash | tee -a "$logfile"
         exit 1
     )
-done < <(git log $range --pretty=tformat:"%H")
+done < <(git log $range --pretty=tformat:"%H" --reverse)
 
 echo "
 All patches in $range compiled successfully!" | tee -a "$logfile"
