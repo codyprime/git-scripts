@@ -26,14 +26,18 @@ set -o pipefail
 desc="
 $0 iterates through a git commit range, and performs the
 following on each commit:
+  - git checkout
   - make clean
   - configure
   - make
 
+It will also optionally perform a git-reset and git-clean between
+checkouts, if requested via the '-f' option.
+
 The script will exit and report on first error on any of the above steps,
 (except no error checking is performed on 'make clean')
 
-NOTE: while executing, the script will checkout out each commit
+NOTE: While executing, the script will checkout out each commit
       in the range in the current git tree.  On exit, the HEAD
       at the time the script was called is checked out"
 
@@ -84,29 +88,29 @@ usage() {
     echo "OPTIONS:"
     echo "      -r git range
             optional; default is '$range'
-                    "
+"
     echo "      -c configure options
             optional; default is '$config_opt'
-                    "
+"
     echo "      -m make options
             optional; default is '$make_opt'
-                    "
+"
     echo "      -d log dir
             optional; default is '$logdir'
-            if specifying the log dir, this argument must precede '-l'
-                    "
+"
     echo "      -l log filename
             optional; default is output-PROCID, where PROCID is the bash process id
             note: you may specify a full path for the log filename here, and exclude the
-                  -d option.
-                    "
+            -d option.
+"
     echo "      -f force a git reset and clean
             this will cause a 'git reset --hard; git clean -fdx' to be run between checkouts.
             !! WARNING: This may cause data loss in your git tree.
-                        READ THE git-clean and git-reset man pages and make
-                        sure you understand the implications of 
+                        READ the git-clean and git-reset man pages and make
+                        sure you understand the implications of
                         'git clean -fdx' and 'git reset --hard' before using !!
-                    "
+            If you specify this option, make sure the logfile falls outside of the tree.
+"
     echo "      -h help"
 }
 
@@ -140,12 +144,19 @@ done
 
 logfile="${logdir}${logfile}"
 
-head=`git rev-parse HEAD`
+head=`git rev-parse --abbrev-ref=strict HEAD`
+if [ HEAD = "$head" ]
+then
+    # we're at a detached head, get hash
+    head=`git rev-parse HEAD`
+fi
+
+
 total=`git rev-list "$range" |wc -l`
 
 echo "log output: $logfile"
 
-rm -f $logfile
+rm -f "$logfile"
 date > "$logfile"
 echo "git compile check for $range." >> "$logfile"
 echo "* configure options='$config_opt'" >> "$logfile"
@@ -187,9 +198,14 @@ do
         ./configure $config_opt >> "$logfile" 2>&1 && \
         make $make_opt          >> "$logfile" 2>&1 ||
     (
-        echo "" | tee -a "$logfile"
-        echo "ERROR: commit $hash failed to build!" | tee -a "$logfile"
-        git show --stat $hash | tee -a "$logfile"
+        S=$?
+        # don't complain for SIGINT, SIGTERM, SIGQUIT
+        if [ $S -ne 130 ] && [ $S -ne 131 ] && [ $S -ne 143 ]
+        then
+            echo "" | tee -a "$logfile"
+            echo "ERROR: commit $hash failed to build!" | tee -a "$logfile"
+            git show --stat $hash | tee -a "$logfile"
+        fi
         exit 1
     )
 done < <(git log $range --pretty=tformat:"%H" --reverse)

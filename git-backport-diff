@@ -29,7 +29,7 @@ upstream commit.  This assumes that you have both the downstream and
 upstream repositories added as remotes in your git repo.
 
 Example usage:
-$0 -r stable_tag..my_feature_branch v1.5.0
+$0 -r qemu-kvm-0.12.1.2-2.370.el6..my_feature_branch v1.5.0
 
 Ouput key:
 [----]   Indicates the patches upstream and downstream are identical
@@ -77,7 +77,7 @@ then
 fi
 if [[ -z "$sensitivity" ]]
 then
-    pause=$def_sensitivity
+    sensitivity=$def_sensitivity
     git config backport-diff.sensitivity $sensitivity || true
 fi
 
@@ -292,7 +292,7 @@ then
         else
             echo "Viewing diff(diff) of ${idx}/${total}: ${bold}${color4}${subjlist[$idx]}${reset}"
         fi
-        eval ${diffprog} ${exe[$idx]}
+        eval ${diffprog} ${exe[$idx]} || true
     done
 fi
 echo "To view diffs later, you may run:"
