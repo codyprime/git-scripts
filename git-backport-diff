@@ -260,8 +260,8 @@ compare_git()
                     label="--label=\"#$cnt: $subj ( <-upstream, downstream-> )\""
                 fi
                 subjlist[$cnt]=$subj
-                exe[$cnt]="${label} <(git diff $uphash^!) <(git diff $downhash^!) 2>/dev/null"
-                shortexe[$cnt]="<(git diff ${uphash:0:7}^\!) <(git diff ${downhash:0:7}^\!)"
+                exe[$cnt]="${label} <(git show $uphash^!) <(git show $downhash^!) 2>/dev/null"
+                shortexe[$cnt]="<(git show ${uphash:0:7}^\!) <(git show ${downhash:0:7}^\!)"
             fi
         else
             printf "%03d/$total:[${bold}${color1}down${reset}] ${bold}${color4}'$subj'${reset}\n" $cnt
@@ -287,8 +287,8 @@ then
     do
         if [[ $pause == 'y' ]]
         then
-            echo "Press any key to view diff(diff) of ${idx}/${total}: ${bold}${color4}${subjlist[$idx]}${reset}"
-            read -n 1 -s
+            echo "Press [Enter] to view diff(diff) of ${idx}/${total}: ${bold}${color4}${subjlist[$idx]}${reset}"
+            read
         else
             echo "Viewing diff(diff) of ${idx}/${total}: ${bold}${color4}${subjlist[$idx]}${reset}"
         fi
