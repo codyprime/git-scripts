@@ -45,6 +45,7 @@ NOTE: While executing, the script will checkout out each commit
 # default range is the last commit
 def_range="HEAD^!"
 def_config_opt="--target-list=x86_64-softmmu"
+def_noconf_opt=false
 # you may want to have make perform multiple jobs, e.g. -j4
 # this is ommitted as the default in case the project makefile
 # is not safe for parallel make processes
@@ -55,6 +56,7 @@ force_clean='n'
 
 logfile=$def_log
 range=`git config compile-check.range || true`
+noconf_opt=`git config compile-check.noconfopt || true`
 config_opt=`git config compile-check.configopt || true`
 make_opt=`git config compile-check.makeopt || true`
 logdir=`git config compile-check.logdir || true`
@@ -68,6 +70,11 @@ if [[ -z "$config_opt" ]]
 then
     config_opt=$def_config_opt
     git config compile-check.configopt $config_opt || true
+fi
+if [[ -z "$noconf_opt" ]]
+then
+    noconf_opt=$def_noconf_opt
+    git config compile-check.noconfopt $noconf_opt || true
 fi
 if [[ -z "$make_opt" ]]
 then
@@ -92,6 +99,9 @@ usage() {
     echo "      -c configure options
             optional; default is '$config_opt'
 "
+    echo "      -n skip the configure step
+            optional; default is '$noconf_opt'
+"
     echo "      -m make options
             optional; default is '$make_opt'
 "
@@ -114,12 +124,14 @@ usage() {
     echo "      -h help"
 }
 
-while getopts ":r:c:m:l:d:hf" opt
+while getopts ":r:c:m:l:d:hfn" opt
 do
     case $opt in
         r) range=$OPTARG
             ;;
         c) config_opt=$OPTARG
+            ;;
+        n) noconf_opt=true
             ;;
         m) make_opt=$OPTARG
             ;;
@@ -159,7 +171,12 @@ echo "log output: $logfile"
 rm -f "$logfile"
 date > "$logfile"
 echo "git compile check for $range." >> "$logfile"
-echo "* configure options='$config_opt'" >> "$logfile"
+if ! $noconf_opt; then
+    echo "* configure options='$config_opt'" >> "$logfile"
+    config_invoc="./configure $config_opt"
+else
+    config_invoc="echo skipping configure"
+fi
 echo "* make options='$make_opt'" >> "$logfile"
 echo "Performing a test compile on $total patches" | tee -a "$logfile"
 echo "-------------------------------------------------------------" >> "$logfile"
@@ -195,7 +212,7 @@ do
     clean_repo
     make clean > /dev/null 2>&1 || true
     git checkout $hash          >> "$logfile" 2>&1 && \
-        ./configure $config_opt >> "$logfile" 2>&1 && \
+        $config_invoc           >> "$logfile" 2>&1 && \
         make $make_opt          >> "$logfile" 2>&1 ||
     (
         S=$?
