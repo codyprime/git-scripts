@@ -264,7 +264,7 @@ compare_git()
                 shortexe[$cnt]="<(git show ${uphash:0:7}^\!) <(git show ${downhash:0:7}^\!)"
             fi
         else
-            printf "%03d/$total:[${bold}${color1}down${reset}] ${bold}${color4}'$subj'${reset}\n" $cnt
+            printf "%03d/$total:[${bold}${color1}down${reset}] ${bold}${color4}'%s'${reset}\n" $cnt "$subj"
         fi
     done < <(git log --pretty=tformat:"%H%s" --reverse $range)
 }
