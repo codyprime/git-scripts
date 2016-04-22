@@ -42,6 +42,7 @@ def_range="HEAD^!"
 def_color='y'
 def_pause='y'
 def_sensitivity=0
+def_summary='n'
 
 upstream=`git config backport-diff.upstream || true`
 diffprog=`git config backport-diff.diffprog || true`
@@ -49,6 +50,7 @@ range=`git config backport-diff.range || true`
 color=`git config backport-diff.color || true`
 pause=`git config backport-diff.pause || true`
 sensitivity=`git config backport-diff.sensitivity || true`
+summary=`git config backport-diff.summary || true`
 
 if [[ -z "$upstream" ]]
 then
@@ -80,6 +82,11 @@ then
     sensitivity=$def_sensitivity
     git config backport-diff.sensitivity $sensitivity || true
 fi
+if [[ -z "$summary" ]]
+then
+    summary=$def_summary
+    git config backport-diff.summary $summary || true
+fi
 
 
 usage() {
@@ -106,6 +113,8 @@ usage() {
           1:  show (0) + contextual differences
           2+: offer to compare all patches, regardless of any differences
                     "
+    echo "      -S summary only (no diff viewing)
+                    "
     echo "      -h help"
     echo ""
     echo "You can set each of the default options using git-config:"
@@ -114,9 +123,10 @@ usage() {
     echo "  git config backport-diff.range"
     echo "  git config backport-diff.color"
     echo "  git config backport-diff.pause"
+    echo "  git config backport-diff.summary"
 }
 
-while getopts ":r:u:nd:phs:" opt
+while getopts ":r:u:nd:phs:S" opt
 do
     case $opt in
         r) range=$OPTARG
@@ -136,6 +146,8 @@ do
               usage
               exit 1
            fi
+            ;;
+        S) summary='y'
             ;;
         h) usage
            exit
@@ -269,6 +281,27 @@ compare_git()
     done < <(git log --pretty=tformat:"%H%s" --reverse $range)
 }
 
+show_diff()
+{
+    echo "Do you want to view the diffs using ${bold}${diffprog}${reset}? y/[n]: "
+    read -n 1 view
+    echo ""
+    if [[ "$view" == "y" ]]
+    then
+        for idx in ${!exe[*]}
+        do
+            if [[ $pause == 'y' ]]
+            then
+                echo "Press [Enter] to view diff(diff) of ${idx}/${total}: ${bold}${color4}${subjlist[$idx]}${reset}"
+                read
+            else
+                echo "Viewing diff(diff) of ${idx}/${total}: ${bold}${color4}${subjlist[$idx]}${reset}"
+            fi
+            eval ${diffprog} ${exe[$idx]} || true
+        done
+    fi
+}
+
 if [[ $upstream_valid != 'y' ]]
 then
     echo "Upstream $upstream is not valid (does not exist)!"
@@ -277,26 +310,18 @@ then
 fi >&2
 
 compare_git
-echo "Do you want to view the diffs using ${bold}${diffprog}${reset}? y/[n]: "
-read -n 1 view
 
-echo ""
-if [[ "$view" == "y" ]]
+if [[ $summary != 'y' ]]
 then
-    for idx in ${!exe[*]}
+    show_diff
+fi
+
+if [[ ${!shortexe[*]} != '' ]]
+then
+    echo ""
+    echo "To view diffs later, you may run:"
+    for idx in ${!shortexe[*]}
     do
-        if [[ $pause == 'y' ]]
-        then
-            echo "Press [Enter] to view diff(diff) of ${idx}/${total}: ${bold}${color4}${subjlist[$idx]}${reset}"
-            read
-        else
-            echo "Viewing diff(diff) of ${idx}/${total}: ${bold}${color4}${subjlist[$idx]}${reset}"
-        fi
-        eval ${diffprog} ${exe[$idx]} || true
+        printf "%03d/$total: '${diffprog} ${shortexe[$idx]}'\n" $idx
     done
 fi
-echo "To view diffs later, you may run:"
-for idx in ${!shortexe[*]}
-do
-    printf "%03d/$total: '${diffprog} ${shortexe[$idx]}'\n" $idx
-done
