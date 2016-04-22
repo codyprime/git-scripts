@@ -267,9 +267,9 @@ compare_git()
             fi
             if [[ $showdiff -eq 1 ]]
             then
-                if [[ diffprog == "meld" ]]
+                if [[ $diffprog == "meld" ]]
                 then
-                    label="--label=\"#$cnt: $subj ( <-upstream, downstream-> )\""
+                    label="--label=\"Patch #$cnt: $subj\" --label=\" \""
                 fi
                 subjlist[$cnt]=$subj
                 exe[$cnt]="${label} <(git show $uphash^!) <(git show $downhash^!) 2>/dev/null"
