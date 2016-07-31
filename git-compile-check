@@ -212,7 +212,7 @@ do
     clean_repo
     make clean > /dev/null 2>&1 || true
     git checkout $hash          >> "$logfile" 2>&1 && \
-        $config_invoc           >> "$logfile" 2>&1 && \
+        eval $config_invoc      >> "$logfile" 2>&1 && \
         make $make_opt          >> "$logfile" 2>&1 ||
     (
         S=$?
