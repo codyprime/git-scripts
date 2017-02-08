@@ -1,0 +1,67 @@
+#!/bin/bash
+
+# Watch for special file that is touched in the receive hook
+# for a repo, and then push changes for that repo.
+
+TRIGGER_ROOT_DIR=/srv/git-hooks-async
+TRIGGER_DIR="${TRIGGER_ROOT_DIR}/qemu"
+
+# minimal interval in seconds between pushes
+# if shorter than this, we will sleep until we
+# can push
+MIN_INTERVAL=120
+
+LOGFILE=/home/gituser/logs/git-qemu-async-hook.log
+
+cleanup()
+{
+    trap - 0 1 2 3 15
+    kill -- $$
+    exit
+}
+
+trap cleanup 0 1 2 3 15
+
+
+(
+last_date=0
+curr_date=
+delta=
+while read ievent
+do
+
+    IFS=' ' read -r -a iva <<< "$ievent"
+
+    unset iva[0]
+    unset iva[1]
+   
+    #echo "${ievent}" | grep -q ".* ATTRIB "
+    #if [ $? -eq 0 ]
+
+    filename="${iva[@]}"
+    if [ "$filename" == "qemu.git-ze8Ooz2g" ] 
+    then
+        # make sure that regardless of what happens, our script
+        # does not go rogue and start hammering github
+        curr_date=$(date +%s)
+        ((delta = $curr_date - $last_date))
+        if [ $delta -lt $MIN_INTERVAL ]
+        then
+            ((sleep_time = $MIN_INTERVAL - $delta))
+            sleep $sleep_time
+        fi
+        date
+        echo "-----------------------"
+        echo "git --git-dir=/srv/git/qemu.git push github"
+
+        git --git-dir=/srv/git/qemu.git push github
+        date
+        echo "fin."
+        echo ""
+        echo ""
+        let last_date=$(date +%s)
+    fi
+done < <(inotifywait -m -e attrib -e create "${TRIGGER_DIR}")
+         # between attrib and create, we can just use 'touch' in
+         # the post-receive hook
+)> "$LOGFILE" 2>&1
