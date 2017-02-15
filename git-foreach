@@ -1,0 +1,177 @@
+#!/bin/bash
+#
+# See $desc, below, for program description
+#
+# Copyright (c) 2017 Red Hat, Inc.
+#
+# Author(s):
+#   Jeff Cody <jcody@redhat.com>
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; under version 2 of the license
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, see <http://www.gnu.org/licenses/gpl-2.0.html>.
+#
+
+set -C -u -e
+set -o pipefail
+
+desc="
+$0 iterates through a git commit range, and performs the
+specified command on each commit."
+
+
+# default range is the last commit
+def_range="HEAD^!"
+def_log="output-$$.log"
+def_logdir=""
+def_cmd="./scripts/checkpatch.pl <(git format-patch -s --stdout HEAD^!)"
+def_showerr="y"
+
+showerr=""
+cmd=""
+
+logfile=$def_log
+range=`git config foreach.range || true`
+logdir=`git config foreach.logdir || true`
+cmd=`git config foreach.cmd || true`
+showerr=`git config foreach.showerr || true`
+
+if [[ -z "$range" ]]
+then
+    range=$def_range
+    git config foreach.range $range || true
+fi
+if [[ -z "$logdir" ]]
+then
+    logdir=$def_logdir
+    git config foreach.logdir "$logdir" || true
+fi
+if [[ -z "$cmd" ]]
+then
+    cmd=$def_cmd
+    git config foreach.cmd "$cmd" || true
+fi
+if [[ -z "$showerr" ]]
+then
+    showerr=$def_showerr
+    git config foreach.showerr $showerr || true
+fi
+
+usage() {
+    echo ""
+    echo "$0 [OPTIONS]"
+    echo "$desc"
+    echo ""
+    echo "OPTIONS:"
+    echo "      -r git range
+            optional; default is '$range'
+"
+    echo "      -d log dir
+            optional; default is '$logdir'
+"
+    echo "      -l log filename
+            optional; default is output-PROCID, where PROCID is the bash process id
+            note: you may specify a full path for the log filename here, and exclude the
+            -d option.
+"
+    echo "      -c cmd
+            cmd to run; default is '$cmd'
+"
+    echo "      -n 
+            don't print or stop on errors; default for showing errors is '$showerr'
+"
+    echo "      -h help"
+}
+
+while getopts ":r:l:d:c:hn" opt
+do
+    case $opt in
+        r) range=$OPTARG
+            ;;
+        d) logdir=$OPTARG
+            ;;
+        l) logfile=$OPTARG
+            ;;
+        c) cmd=$OPTARG
+            ;;
+        n) showerr='n'
+            ;;
+        h) usage
+           exit
+            ;;
+        \?) echo "Unknown option: -$OPTARG" >&2
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+# append a '/' to logdir if $logdir was specified without one
+[[ -n "$logdir" ]] && [[ ${logdir:${#logdir}-1} != "/" ]] && logdir="${logdir}/"
+
+logfile="${logdir}${logfile}"
+
+head=`git rev-parse --abbrev-ref=strict HEAD`
+if [ HEAD = "$head" ]
+then
+    # we're at a detached head, get hash
+    head=`git rev-parse HEAD`
+fi
+
+
+total=`git rev-list "$range" |wc -l`
+
+echo "log output: $logfile"
+
+date > "$logfile"
+echo "git foreach loop, executing '$cmd' for $range." >> "$logfile"
+echo "-------------------------------------------------------------" >> "$logfile"
+echo "" | tee -a "$logfile"
+
+# we want to cleanup and return the git tree back to the previous head
+trap cleanup EXIT
+
+cleanup() {
+    echo ""
+    echo -n "Cleaning up..."
+    git checkout $head > /dev/null 2>&1
+    echo "done."
+}
+
+cnt=1
+# don't pipe the git job into read, to avoid subshells
+while read hash
+do
+    txt=`git log --pretty=tformat:"%h: %s" $hash^!`
+    echo "${cnt}/${total}: commit: $txt" | tee -a "$logfile"
+    let cnt=$cnt+1;
+    echo "####################" >> "$logfile"
+    git checkout $hash          >> "$logfile" 2>&1 && \
+        eval $cmd                2>&1 | tee -a "$logfile" ||
+    (
+        S=$?
+        if [[ "$showerr" == "y" ]]
+        then
+            # don't complain for SIGINT, SIGTERM, SIGQUIT
+            if [ $S -ne 130 ] && [ $S -ne 131 ] && [ $S -ne 143 ]
+            then
+                echo "" | tee -a "$logfile"
+                echo "ERROR: foreach cmd on $hash failed!" | tee -a "$logfile"
+                git show --stat $hash | tee -a "$logfile"
+            fi
+            exit 1
+        fi
+    )
+done < <(git log $range --pretty=tformat:"%H" --reverse)
+
+echo "
+All patches in $range executed on  successfully!" | tee -a "$logfile"
+exit 0
