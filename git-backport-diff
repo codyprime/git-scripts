@@ -36,7 +36,7 @@ Ouput key:
 [####]   Indicates the number of differences (#### is substituted)
 [down]   Indicates the patch only exists downstream"
 
-def_upstream="v1.7.0"
+def_upstream="@{upstream}"
 def_diffprog=meld
 def_range="HEAD^!"
 def_color='y'
