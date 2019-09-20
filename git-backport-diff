@@ -210,6 +210,11 @@ then
     upstream_valid='y'
 fi
 
+eat_git_numbers() {
+    sed -e 's/^index .*/index <some index>/' -e 's/^@@ .* @@/@@ <some lines> @@/' \
+        -e 's/^commit .*/commit <some commit>/' -e 's/^Date:.*00/Date: <some date>/'
+}
+
 numdiff=0
 label=
 subjlist=
@@ -281,7 +286,12 @@ compare_git()
                     label="--label=\"Patch #$cnt: $subj\" --label=\" \""
                 fi
                 subjlist[$cnt]=$subj
-                exe[$cnt]="${label} <(git show $uphash^!) <(git show $downhash^!) 2>/dev/null"
+                tmp_dir=$(mktemp -d)
+                uphash_file="$tmp_dir/[up-$cnt]-$(git log --format=%f -n 1 $uphash).patch"
+                downhash_file="$tmp_dir/[down-$cnt]-$(git log --format=%f -n 1 $downhash).patch"
+                git show $uphash | eat_git_numbers > "$uphash_file"
+                git show $downhash | eat_git_numbers > "$downhash_file"
+                exe[$cnt]="${label} ${uphash_file} ${downhash_file} 2>/dev/null"
                 shortexe[$cnt]="<(git show ${uphash:0:7}^\!) <(git show ${downhash:0:7}^\!)"
             fi
         else
