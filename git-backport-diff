@@ -271,13 +271,13 @@ compare_git()
 
         if [[ -n "$uphash" ]]
         then
-            numdiff=`diff -u <(git diff --diff-algorithm=patience $DIFFOPTS $uphash^!   |egrep ^[-+])\
-                             <(git diff --diff-algorithm=patience $DIFFOPTS $downhash^! |egrep ^[-+])\
-                             | egrep '^[-+]' | egrep -v '^[-+]{3}' |wc -l || true`
+            numdiff=`diff -u <(git diff --diff-algorithm=patience $DIFFOPTS $uphash^!   |grep -E ^[-+])\
+                             <(git diff --diff-algorithm=patience $DIFFOPTS $downhash^! |grep -E ^[-+])\
+                             | grep -E '^[-+]' | grep -E -v '^[-+]{3}' |wc -l || true`
             # for contextual diff checking, we will ignore hashes and line number offsets
-            condiff=`diff -u <(git diff --diff-algorithm=patience $DIFFOPTS $uphash^\!  |sed -e s/^@@.*@@//g |egrep -v ^index |egrep -v ^diff)\
-                             <(git diff --diff-algorithm=patience $DIFFOPTS $downhash^\!|sed -e s/^@@.*@@//g |egrep -v ^index |egrep -v ^diff)\
-                             | egrep '^[-+]' | egrep -v '^[-+]{3}'|wc -l || true`
+            condiff=`diff -u <(git diff --diff-algorithm=patience $DIFFOPTS $uphash^\!  |sed -e s/^@@.*@@//g |grep -E -v ^index |grep -E -v ^diff)\
+                             <(git diff --diff-algorithm=patience $DIFFOPTS $downhash^\!|sed -e s/^@@.*@@//g |grep -E -v ^index |grep -E -v ^diff)\
+                             | grep -E '^[-+]' | grep -E -v '^[-+]{3}'|wc -l || true`
             f="-"
             c="-"
             if [[ $sensitivity -gt 1 ]]
