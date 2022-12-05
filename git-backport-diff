@@ -44,6 +44,10 @@ def_pause='y'
 def_sensitivity=0
 def_summary='n'
 
+if [ -z "${DIFFOPTS+x}" ]; then
+    DIFFOPTS=
+fi
+
 upstream=`git config backport-diff.upstream || true`
 diffprog=`git config backport-diff.diffprog || true`
 range=`git config backport-diff.range || true`
@@ -267,12 +271,12 @@ compare_git()
 
         if [[ -n "$uphash" ]]
         then
-            numdiff=`diff -u <(git diff --diff-algorithm=patience $uphash^!   |egrep ^[-+])\
-                             <(git diff --diff-algorithm=patience $downhash^! |egrep ^[-+])\
+            numdiff=`diff -u <(git diff --diff-algorithm=patience $DIFFOPTS $uphash^!   |egrep ^[-+])\
+                             <(git diff --diff-algorithm=patience $DIFFOPTS $downhash^! |egrep ^[-+])\
                              | egrep '^[-+]' | egrep -v '^[-+]{3}' |wc -l || true`
             # for contextual diff checking, we will ignore hashes and line number offsets
-            condiff=`diff -u <(git diff --diff-algorithm=patience $uphash^\!  |sed -e s/^@@.*@@//g |egrep -v ^index |egrep -v ^diff)\
-                             <(git diff --diff-algorithm=patience $downhash^\!|sed -e s/^@@.*@@//g |egrep -v ^index |egrep -v ^diff)\
+            condiff=`diff -u <(git diff --diff-algorithm=patience $DIFFOPTS $uphash^\!  |sed -e s/^@@.*@@//g |egrep -v ^index |egrep -v ^diff)\
+                             <(git diff --diff-algorithm=patience $DIFFOPTS $downhash^\!|sed -e s/^@@.*@@//g |egrep -v ^index |egrep -v ^diff)\
                              | egrep '^[-+]' | egrep -v '^[-+]{3}'|wc -l || true`
             f="-"
             c="-"
@@ -305,7 +309,7 @@ compare_git()
                     label="--label=\"Patch #$cnt: $newsubj\" --label=\" \""
                 fi
                 subjlist[$cnt]=$newsubj
-                exe[$cnt]="${label} <(git show $uphash^!) <(git show $downhash^!) 2>/dev/null"
+                exe[$cnt]="${label} <(git show $DIFFOPTS $uphash^!) <(git show $DIFFOPTS $downhash^!) 2>/dev/null"
                 shortexe[$cnt]="<(git show ${uphash:0:7}^\!) <(git show ${downhash:0:7}^\!)"
             fi
         else
