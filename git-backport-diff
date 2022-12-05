@@ -126,7 +126,9 @@ usage() {
     echo "  git config backport-diff.summary"
 }
 
-while getopts ":r:u:nd:phs:S" opt
+declare -A aliases
+
+while getopts ":r:u:nd:phs:Sa:" opt
 do
     case $opt in
         r) range=$OPTARG
@@ -148,6 +150,9 @@ do
            fi
             ;;
         S) summary='y'
+            ;;
+        a) IFS='=' read -ra a <<< "$OPTARG"
+           aliases[${a[0]}]=${a[1]}
             ;;
         h) usage
            exit
@@ -226,6 +231,10 @@ compare_git()
     do
         let cnt=$cnt+1;
         subj=${hashsubj:40}
+        if [ -n "${aliases[$subj]+_}" ]
+        then
+            subj=${aliases[$subj]}
+        fi
 
         # We need to direct the git-log output through a FIFO so we
         # get a git-log job that we can kill once we have found our
