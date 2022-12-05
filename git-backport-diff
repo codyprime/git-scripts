@@ -226,12 +226,21 @@ compare_git()
     do
         let cnt=$cnt+1;
         subj=${hashsubj:40}
+
+        # We need to direct the git-log output through a FIFO so we
+        # get a git-log job that we can kill once we have found our
+        # match
+        git_fifo=$(mktemp -u --tmpdir 'backport-diff.XXXXXX')
+        mkfifo "$git_fifo"
+
         downhash=${hashsubj:0:40}
         # A little bit hackish, but find the match by looking at upstream
         # subject lines, and using the newest one.  Not all backports contain
         # the phrase "cherry-pick", so we can't really try and find the
         # upstream hash from that...
         uphash=""
+        git log $upstream --pretty=tformat:"%H%s" --fixed-strings --grep="${subj}" >"$git_fifo" &
+        job_id=$(jobs -l | grep "\<$!\>" | sed -e 's/[^\[]*\[\([^\]]*\)\].*/\1/')
         while read uphashsubj
         do
             if [[ "${uphashsubj:40}" == "$subj" ]]
@@ -239,7 +248,12 @@ compare_git()
                 uphash=${uphashsubj:0:40}
                 break
             fi
-        done < <(git log $upstream --pretty=tformat:"%H%s" --fixed-strings --grep="${subj}")
+        done <"$git_fifo"
+
+        # Ignore errors
+        kill %$job_id &>/dev/null || true
+        wait &> /dev/null
+        rm -f "$git_fifo"
 
         if [[ -n "$uphash" ]]
         then
